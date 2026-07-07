@@ -46,13 +46,14 @@ async function listBusinesses() {
   return data.map(rowToBusiness);
 }
 
-async function addBusiness({ name, contact, phone, email, notes }) {
+async function addBusiness({ name, contact, phone, email, address, notes }) {
   const row = {
     id: uid(),
     name: name || '',
     contact: contact || '',
     phone: phone || '',
     email: email || '',
+    address: address || '',
     notes: notes || '',
     created_at: new Date().toISOString()
   };
@@ -133,6 +134,7 @@ function rowToBusiness(row) {
     contact: row.contact,
     phone: row.phone,
     email: row.email,
+    address: row.address,
     notes: row.notes,
     createdAt: row.created_at
   };
