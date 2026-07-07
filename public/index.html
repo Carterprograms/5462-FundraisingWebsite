@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRC 5462 Sponsor Call Board</title>
+</head>
+<body>
+<style>
+  :root{
+    --blue-deep:#0a1a2b;
+    --blue-panel:#0f2540;
+    --blue-line:#2a4d70;
+    --orange:#ff6a1a;
+    --orange-dim:#ff6a1a33;
+    --paper:#e8eef3;
+    --paper-dim:#9fb3c8;
+    --green:#3ddc84;
+    --amber:#ffc857;
+    --red:#ff5c5c;
+    --mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+    --disp: 'Rajdhani', 'Oswald', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  #app-root{
+    background: var(--blue-deep);
+    background-image:
+      linear-gradient(var(--blue-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--blue-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+    color: var(--paper);
+    font-family: var(--mono);
+    min-height: 100%;
+    padding: 0;
+  }
+  @font-face{ }
+  .sheet-header{
+    border-bottom: 2px solid var(--orange);
+    padding: 18px 22px 14px 22px;
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(255,106,26,0.06), transparent);
+  }
+  .title-block h1{
+    font-family: var(--disp);
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .title-block .sub{
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .spec-tag{
+    font-size: 11px;
+    color: var(--paper-dim);
+    text-align:right;
+    line-height:1.6;
+  }
+  .spec-tag span{ color: var(--orange); }
+
+  .stat-strip{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--blue-line);
+  }
+  .stat{
+    padding: 14px 18px;
+    border-right: 1px solid var(--blue-line);
+  }
+  .stat:last-child{ border-right:none; }
+  .stat .num{
+    font-family: var(--disp);
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .stat .lbl{
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--paper-dim);
+    margin-top: 2px;
+  }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 1.1fr 1.4fr;
+    gap: 0;
+  }
+  @media (max-width: 860px){
+    .layout{ grid-template-columns: 1fr; }
+  }
+  .col{ padding: 20px; border-right: 1px solid var(--blue-line); }
+  .col:last-child{ border-right:none; }
+
+  .section-label{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .section-label .tick{
+    width: 8px; height: 8px;
+    background: var(--orange);
+    transform: rotate(45deg);
+    flex-shrink:0;
+  }
+  .section-label h2{
+    font-family: var(--disp);
+    font-size: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0;
+    color:#fff;
+  }
+  .section-label .count{
+    margin-left:auto;
+    font-size: 11px;
+    color: var(--paper-dim);
+  }
+
+  form.card{
+    border: 1px dashed var(--blue-line);
+    padding: 14px;
+    margin-bottom: 18px;
+    background: rgba(255,255,255,0.02);
+  }
+  .field-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .field{ flex:1; min-width: 140px; display:flex; flex-direction:column; gap:4px; }
+  label{
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--paper-dim);
+  }
+  input, select, textarea{
+    background: var(--blue-panel);
+    border: 1px solid var(--blue-line);
+    color: var(--paper);
+    padding: 8px 9px;
+    font-family: var(--mono);
+    font-size: 13px;
+    border-radius: 2px;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline: none;
+    border-color: var(--orange);
+  }
+  textarea{ resize: vertical; min-height: 44px; }
+  button{
+    font-family: var(--disp);
+    font-weight:600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--orange);
+    color: #1a0d00;
+    border: none;
+    padding: 9px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  button:hover{ filter: brightness(1.1); }
+  button.ghost{
+    background: transparent;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+  }
+  button.tiny{
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  button:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .biz-card{
+    border: 1px solid var(--blue-line);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    position: relative;
+    background: rgba(255,255,255,0.015);
+  }
+  .biz-card:hover{ border-color: var(--orange); }
+  .biz-top{ display:flex; justify-content: space-between; gap: 8px; }
+  .biz-name{ font-weight:700; color:#fff; font-size: 14.5px; }
+  .biz-meta{ font-size: 12px; color: var(--paper-dim); margin-top: 4px; line-height:1.7; }
+  .biz-meta a{ color: var(--paper); }
+  .biz-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .pledge-badge{
+    display:inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    padding: 2px 7px;
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 2px;
+  }
+  .status-badge{
+    display:inline-block;
+    font-size: 10px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-top: 6px;
+    margin-right:6px;
+  }
+  .status-none{ border:1px solid var(--paper-dim); color: var(--paper-dim); }
+  .status-followup{ border:1px solid var(--amber); color: var(--amber); }
+  .status-declined{ border:1px solid var(--red); color: var(--red); }
+  .status-pledged{ border:1px solid var(--green); color: var(--green); }
+
+  .log-entry{
+    border-left: 2px solid var(--blue-line);
+    padding: 8px 0 8px 14px;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .log-entry::before{
+    content:'';
+    position:absolute;
+    left:-5px; top: 14px;
+    width:8px; height:8px;
+    background: var(--blue-deep);
+    border: 2px solid var(--orange);
+    border-radius: 50%;
+  }
+  .log-top{ display:flex; justify-content: space-between; gap:8px; flex-wrap:wrap; }
+  .log-biz{ font-weight:700; color:#fff; font-size:13.5px; }
+  .log-date{ font-size:11px; color: var(--paper-dim); }
+  .log-caller{ font-size: 11.5px; color: var(--orange); margin-top:2px; }
+  .log-notes{ font-size: 12.5px; color: var(--paper-dim); margin-top: 4px; line-height:1.5; }
+
+  .empty{
+    color: var(--paper-dim);
+    font-size: 12.5px;
+    padding: 20px 4px;
+    border: 1px dashed var(--blue-line);
+    text-align:center;
+  }
+  select.status-select{ font-size:11px; padding: 4px 6px; }
+  .filter-bar{ display:flex; gap:8px; margin-bottom: 12px; flex-wrap:wrap; }
+  .filter-bar select, .filter-bar input{ font-size: 12px; padding:6px 8px; }
+  ::placeholder{ color: #5b7085; }
+  .loading-msg{ padding: 40px; text-align:center; color:var(--paper-dim); font-size:13px; }
+  .footnote{
+    padding: 10px 22px 18px;
+    font-size: 10.5px;
+    color: var(--paper-dim);
+    letter-spacing: 0.04em;
+  }
+  .sync-panel{
+    margin: 0 22px 18px;
+    border: 1px dashed var(--blue-line);
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.015);
+  }
+  .sync-panel-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .sync-panel-head h3{
+    font-family: var(--disp);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin:0;
+    color:#fff;
+  }
+  .sync-dot{
+    width:8px; height:8px; border-radius:50%;
+    background: var(--paper-dim);
+    flex-shrink:0;
+  }
+  .sync-dot.on{ background: var(--green); }
+  .sync-body{ margin-top: 10px; }
+  .sync-body p{ font-size: 11.5px; color: var(--paper-dim); line-height:1.6; margin: 0 0 8px; }
+  .sync-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .sync-row input{ flex:1; min-width:220px; }
+  .caret{ margin-left:auto; color: var(--paper-dim); font-size: 11px; }
+</style>
+
+<div id="app-root">
+  <div class="loading-msg" id="loading">LOADING BOARD…</div>
+</div>
+
+<script>
+(function(){
+  const root = document.getElementById('app-root');
+
+  let businesses = [];
+  let calls = [];
+  let ready = false;
+  let sheetUrl = '';
+  let syncPanelOpen = false;
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const API = '/api';
+
+  async function loadAll(){
+    try {
+      const [bRes, cRes] = await Promise.all([
+        fetch(API + '/businesses'),
+        fetch(API + '/calls')
+      ]);
+      businesses = bRes.ok ? await bRes.json() : [];
+      calls = cRes.ok ? await cRes.json() : [];
+    } catch(e){
+      console.error('Failed to load from API', e);
+      businesses = []; calls = [];
+    }
+    try {
+      const s = localStorage.getItem('frc5462_sheetUrl');
+      sheetUrl = s || '';
+    } catch(e){ sheetUrl = ''; }
+    ready = true;
+    render();
+  }
+
+  async function saveSheetUrl(url){
+    sheetUrl = url;
+    try { localStorage.setItem('frc5462_sheetUrl', url); }
+    catch(e){ console.error('save sheetUrl failed', e); }
+  }
+
+  function sendToSheet(payload){
+    if(!sheetUrl) return;
+    fetch(sheetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).catch(()=>{ /* fire and forget, opaque response expected */ });
+  }
+
+  async function apiAddBusiness(payload){
+    const res = await fetch(API + '/businesses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('Failed to add business');
+    return res.json();
+  }
+  async function apiDeleteBusiness(id){
+    const res = await fetch(API + '/businesses/' + id, { method: 'DELETE' });
+    if(!res.ok) throw new Error('Failed to delete business');
+  }
+  async function apiAddCall(payload){
+    const res = await fetch(API + '/calls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('Failed to add call');
+    return res.json();
+  }
+  async function apiDeleteCall(id){
+    const res = await fetch(API + '/calls/' + id, { method: 'DELETE' });
+    if(!res.ok) throw new Error('Failed to delete call');
+  }
+
+  function money(n){
+    const v = Number(n)||0;
+    return '$' + v.toLocaleString(undefined,{maximumFractionDigits:0});
+  }
+
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function statusClass(status){
+    if(status==='Pledged') return 'status-pledged';
+    if(status==='Follow-up') return 'status-followup';
+    if(status==='Declined') return 'status-declined';
+    return 'status-none';
+  }
+
+  function latestStatusForBusiness(bizId){
+    const bizCalls = calls.filter(c=>c.businessId===bizId).sort((a,b)=> new Date(b.date) - new Date(a.date));
+    return bizCalls.length ? bizCalls[0].outcome : null;
+  }
+
+  function totalPledged(){
+    return calls.reduce((sum,c)=> sum + (c.outcome==='Pledged' ? (Number(c.amount)||0) : 0), 0);
+  }
+
+  function followUpCount(){
+    return businesses.filter(b => latestStatusForBusiness(b.id) === 'Follow-up').length;
+  }
+
+  let bizFilter = 'all';
+  let bizSearch = '';
+
+  function render(){
+    if(!ready){
+      root.innerHTML = '<div class="loading-msg">LOADING BOARD…</div>';
+      return;
+    }
+
+    const stats = `
+      <div class="stat-strip">
+        <div class="stat"><div class="num">${businesses.length}</div><div class="lbl">Businesses Listed</div></div>
+        <div class="stat"><div class="num">${calls.length}</div><div class="lbl">Calls Logged</div></div>
+        <div class="stat"><div class="num">${money(totalPledged())}</div><div class="lbl">Pledged Total</div></div>
+        <div class="stat"><div class="num">${followUpCount()}</div><div class="lbl">Need Follow-up</div></div>
+      </div>
+    `;
+
+    const filteredBiz = businesses.filter(b => {
+      const matchesSearch = !bizSearch || (b.name+b.contact+b.notes).toLowerCase().includes(bizSearch.toLowerCase());
+      if(!matchesSearch) return false;
+      if(bizFilter==='all') return true;
+      const st = latestStatusForBusiness(b.id) || 'None';
+      return st === bizFilter;
+    });
+
+    const bizListHtml = filteredBiz.length ? filteredBiz.slice().reverse().map(b => {
+      const st = latestStatusForBusiness(b.id) || 'None';
+      const bizCalls = calls.filter(c=>c.businessId===b.id);
+      const pledgeSum = bizCalls.reduce((s,c)=> s + (c.outcome==='Pledged' ? (Number(c.amount)||0) : 0), 0);
+      return `
+        <div class="biz-card">
+          <div class="biz-top">
+            <div>
+              <div class="biz-name">${escapeHtml(b.name)}</div>
+              <div class="biz-meta">
+                ${b.contact ? escapeHtml(b.contact)+'<br>' : ''}
+                ${b.phone ? '📞 <a href="tel:'+escapeHtml(b.phone)+'">'+escapeHtml(b.phone)+'</a><br>' : ''}
+                ${b.email ? '✉ <a href="mailto:'+escapeHtml(b.email)+'">'+escapeHtml(b.email)+'</a>' : ''}
+              </div>
+              <span class="status-badge ${statusClass(st)}">${escapeHtml(st)}</span>
+              ${pledgeSum>0 ? '<span class="pledge-badge">'+money(pledgeSum)+' pledged</span>' : ''}
+              ${b.notes ? '<div class="biz-meta" style="margin-top:6px;">'+escapeHtml(b.notes)+'</div>' : ''}
+            </div>
+            <div class="biz-actions">
+              <button class="tiny" data-action="log-call" data-id="${b.id}">Log Call</button>
+              <button class="tiny ghost" data-action="delete-biz" data-id="${b.id}">Del</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') : '<div class="empty">No businesses match. Add one on the left.</div>';
+
+    const sortedCalls = calls.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const logHtml = sortedCalls.length ? sortedCalls.map(c => {
+      const biz = businesses.find(x=>x.id===c.businessId);
+      return `
+        <div class="log-entry">
+          <div class="log-top">
+            <div class="log-biz">${biz ? escapeHtml(biz.name) : '(deleted business)'} <span class="status-badge ${statusClass(c.outcome)}">${escapeHtml(c.outcome)}</span></div>
+            <div class="log-date">${escapeHtml(c.date)}</div>
+          </div>
+          <div class="log-caller">Called by ${escapeHtml(c.caller)}${c.amount ? ' · '+money(c.amount) : ''}</div>
+          ${c.notes ? '<div class="log-notes">'+escapeHtml(c.notes)+'</div>' : ''}
+          <div style="margin-top:6px;"><button class="tiny ghost" data-action="delete-call" data-id="${c.id}">Remove entry</button></div>
+        </div>
+      `;
+    }).join('') : '<div class="empty">No calls logged yet. Use "Log Call" on a business, or the quick-log form above.</div>';
+
+    root.innerHTML = `
+      <div class="sheet-header">
+        <div class="title-block">
+          <h1>FRC 5462 — Sponsor Call Board</h1>
+          <div class="sub">Fundraising Contact Tracker</div>
+        </div>
+        <div class="spec-tag">
+          SHEET NO. <span>FR-5462</span><br>
+          LOCAL COPY — <span>SAVED ON THE SERVER DATABASE</span>
+        </div>
+      </div>
+      ${stats}
+      <div class="sync-panel">
+        <div class="sync-panel-head" id="sync-toggle">
+          <span class="sync-dot ${sheetUrl ? 'on' : ''}"></span>
+          <h3>Google Sheet Sync</h3>
+          <span class="caret">${sheetUrl ? 'CONNECTED — click for setup' : 'NOT CONFIGURED — click to set up'} ${syncPanelOpen ? '▲' : '▼'}</span>
+        </div>
+        ${syncPanelOpen ? `
+        <div class="sync-body">
+          <p>Every business or call added here can also be sent to a Google Sheet. This requires a one-time setup with Google Apps Script (free, no coding required beyond pasting code in):</p>
+          <p>1. Open a Google Sheet (new or existing) → Extensions → Apps Script.<br>
+             2. Delete any code there, paste the script below, then click Deploy → New deployment → type "Web app" → Execute as "Me" → Who has access "Anyone" → Deploy.<br>
+             3. Copy the Web app URL it gives you and paste it below.</p>
+          <div class="sync-row">
+            <input type="text" id="sheet-url-input" placeholder="Paste your Apps Script Web App URL…" value="${escapeHtml(sheetUrl)}">
+            <button type="button" id="save-sheet-url">Save</button>
+            ${sheetUrl ? '<button type="button" class="ghost" id="clear-sheet-url">Disconnect</button>' : ''}
+          </div>
+          <p style="margin-top:10px;">Apps Script code to paste in:</p>
+          <textarea readonly style="width:100%; min-height:220px; font-size:11px;">function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (data.type === 'business') {
+    var sheet = ss.getSheetByName('Businesses') || ss.insertSheet('Businesses');
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(['ID','Name','Contact','Phone','Email','Notes','Created At']);
+    }
+    sheet.appendRow([data.id, data.name, data.contact, data.phone, data.email, data.notes, data.createdAt]);
+  } else if (data.type === 'call') {
+    var sheet = ss.getSheetByName('Calls') || ss.insertSheet('Calls');
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(['ID','Business','Caller','Date','Outcome','Amount ($)','Notes']);
+    }
+    sheet.appendRow([data.id, data.businessName, data.caller, data.date, data.outcome, data.amount, data.notes]);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</textarea>
+          <p style="margin-top:8px;">Note: this uses a "fire and forget" request, so the tracker won't show an error if the URL is wrong — check your Sheet after adding a test entry to confirm it's working.</p>
+        </div>` : ''}
+      </div>
+      <div class="layout">
+        <div class="col">
+          <div class="section-label"><span class="tick"></span><h2>Business Directory</h2><span class="count">${businesses.length} ON FILE</span></div>
+
+          <form class="card" id="biz-form">
+            <div class="field-row">
+              <div class="field" style="flex:2;">
+                <label>Business name *</label>
+                <input type="text" id="f-name" placeholder="e.g. Coldwater Hardware" required>
+              </div>
+              <div class="field">
+                <label>Contact person</label>
+                <input type="text" id="f-contact" placeholder="Manager name">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Phone</label>
+                <input type="tel" id="f-phone" placeholder="(517) 555-0100">
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input type="email" id="f-email" placeholder="contact@business.com">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Notes</label>
+                <textarea id="f-notes" placeholder="Best time to call, prior relationship, etc."></textarea>
+              </div>
+            </div>
+            <button type="submit">+ Add Business</button>
+          </form>
+
+          <div class="filter-bar">
+            <input type="text" id="biz-search" placeholder="Search businesses…" value="${escapeHtml(bizSearch)}" style="flex:2;">
+            <select id="biz-filter" style="flex:1;">
+              <option value="all">All statuses</option>
+              <option value="None">Not yet called</option>
+              <option value="Follow-up">Follow-up</option>
+              <option value="Pledged">Pledged</option>
+              <option value="Declined">Declined</option>
+            </select>
+          </div>
+
+          <div id="biz-list">${bizListHtml}</div>
+        </div>
+
+        <div class="col">
+          <div class="section-label"><span class="tick"></span><h2>Call Log</h2><span class="count">${calls.length} ENTRIES</span></div>
+
+          <form class="card" id="call-form">
+            <div class="field-row">
+              <div class="field" style="flex:2;">
+                <label>Business *</label>
+                <select id="c-biz" required>
+                  <option value="">Select a business…</option>
+                  ${businesses.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field">
+                <label>Your name *</label>
+                <input type="text" id="c-caller" placeholder="Caller" required>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Date</label>
+                <input type="date" id="c-date">
+              </div>
+              <div class="field">
+                <label>Outcome *</label>
+                <select id="c-outcome" required>
+                  <option value="Follow-up">Follow-up needed</option>
+                  <option value="Pledged">Pledged</option>
+                  <option value="Declined">Declined</option>
+                  <option value="No answer">No answer / left message</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Amount pledged ($)</label>
+                <input type="number" id="c-amount" min="0" step="1" placeholder="0">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Call notes</label>
+                <textarea id="c-notes" placeholder="What was discussed, next steps…"></textarea>
+              </div>
+            </div>
+            <button type="submit" ${businesses.length===0 ? 'disabled' : ''}>+ Log Call</button>
+            ${businesses.length===0 ? '<div style="font-size:11px;color:var(--paper-dim);margin-top:6px;">Add a business first.</div>' : ''}
+          </form>
+
+          <div id="call-log">${logHtml}</div>
+        </div>
+      </div>
+      <div class="footnote">Data is stored in the server's database — everyone hitting this same server sees the same businesses and calls.${sheetUrl ? ' New entries are also sent to your connected Google Sheet.' : ''}</div>
+    `;
+
+    document.getElementById('sync-toggle').addEventListener('click', ()=>{
+      syncPanelOpen = !syncPanelOpen;
+      render();
+    });
+    const saveBtn = document.getElementById('save-sheet-url');
+    if(saveBtn){
+      saveBtn.addEventListener('click', async ()=>{
+        const val = document.getElementById('sheet-url-input').value.trim();
+        await saveSheetUrl(val);
+        render();
+      });
+    }
+    const clearBtn = document.getElementById('clear-sheet-url');
+    if(clearBtn){
+      clearBtn.addEventListener('click', async ()=>{
+        await saveSheetUrl('');
+        render();
+      });
+    }
+
+    document.getElementById('biz-form').addEventListener('submit', onAddBusiness);
+    document.getElementById('call-form').addEventListener('submit', onAddCall);
+    document.getElementById('biz-search').addEventListener('input', (e)=>{ bizSearch = e.target.value; render(); });
+    document.getElementById('biz-filter').value = bizFilter;
+    document.getElementById('biz-filter').addEventListener('change', (e)=>{ bizFilter = e.target.value; render(); });
+
+    root.querySelectorAll('[data-action="log-call"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const sel = document.getElementById('c-biz');
+        if(sel) sel.value = btn.getAttribute('data-id');
+        document.getElementById('c-caller').focus();
+        document.getElementById('call-form').scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+    root.querySelectorAll('[data-action="delete-biz"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-id');
+        try {
+          await apiDeleteBusiness(id);
+          businesses = businesses.filter(b=>b.id!==id);
+          render();
+        } catch(e){ alert('Could not delete business — check your connection to the server.'); }
+      });
+    });
+    root.querySelectorAll('[data-action="delete-call"]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-id');
+        try {
+          await apiDeleteCall(id);
+          calls = calls.filter(c=>c.id!==id);
+          render();
+        } catch(e){ alert('Could not delete call — check your connection to the server.'); }
+      });
+    });
+  }
+
+  async function onAddBusiness(e){
+    e.preventDefault();
+    const name = document.getElementById('f-name').value.trim();
+    if(!name) return;
+    const payload = {
+      name,
+      contact: document.getElementById('f-contact').value.trim(),
+      phone: document.getElementById('f-phone').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
+      notes: document.getElementById('f-notes').value.trim()
+    };
+    try {
+      const biz = await apiAddBusiness(payload);
+      businesses.push(biz);
+      sendToSheet({ type: 'business', ...biz });
+      render();
+    } catch(err){
+      alert('Could not save business — check your connection to the server.');
+    }
+  }
+
+  async function onAddCall(e){
+    e.preventDefault();
+    const businessId = document.getElementById('c-biz').value;
+    const caller = document.getElementById('c-caller').value.trim();
+    if(!businessId || !caller) return;
+    let dateVal = document.getElementById('c-date').value;
+    if(!dateVal){
+      const d = new Date();
+      dateVal = d.toISOString().slice(0,10);
+    }
+    const payload = {
+      businessId,
+      caller,
+      date: dateVal,
+      outcome: document.getElementById('c-outcome').value,
+      amount: document.getElementById('c-amount').value,
+      notes: document.getElementById('c-notes').value.trim()
+    };
+    try {
+      const call = await apiAddCall(payload);
+      calls.push(call);
+      const biz = businesses.find(b=>b.id===businessId);
+      sendToSheet({ type: 'call', ...call, businessName: biz ? biz.name : '' });
+      render();
+    } catch(err){
+      alert('Could not save call — check your connection to the server.');
+    }
+  }
+
+  loadAll();
+})();
+</script>
+</body></html>
