@@ -23,12 +23,11 @@
   }
   * { box-sizing: border-box; }
   #app-root{
-    background: var(--blue-deep);
+    background-color: #15181b;
     background-image:
-      linear-gradient(var(--blue-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--blue-line) 1px, transparent 1px);
-    background-size: 28px 28px;
-    background-position: -1px -1px;
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 2px, transparent 2px, transparent 9px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 2px, transparent 2px, transparent 9px),
+      radial-gradient(ellipse at 50% 0%, rgba(255,106,26,0.05), transparent 60%);
     color: var(--paper);
     font-family: var(--mono);
     min-height: 100%;
