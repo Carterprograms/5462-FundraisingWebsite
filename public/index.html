@@ -502,7 +502,13 @@
             ${sheetUrl ? '<button type="button" class="ghost" id="clear-sheet-url">Disconnect</button>' : ''}
           </div>
           <p style="margin-top:10px;">Apps Script code to paste in:</p>
-          <textarea readonly style="width:100%; min-height:220px; font-size:11px;">function doPost(e) {
+          <textarea readonly style="width:100%; min-height:320px; font-size:11px;">function doPost(e) {
+  if (!e || !e.postData || !e.postData.contents) {
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: 'error', message: 'No data received. This must be called via HTTP POST, not run directly in the editor.' })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
   var data = JSON.parse(e.postData.contents);
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -512,18 +518,37 @@
       sheet.appendRow(['ID','Name','Contact','Phone','Email','Notes','Created At']);
     }
     sheet.appendRow([data.id, data.name, data.contact, data.phone, data.email, data.notes, data.createdAt]);
+
   } else if (data.type === 'call') {
     var sheet = ss.getSheetByName('Calls') || ss.insertSheet('Calls');
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(['ID','Business','Caller','Date','Outcome','Amount ($)','Notes']);
     }
     sheet.appendRow([data.id, data.businessName, data.caller, data.date, data.outcome, data.amount, data.notes]);
+
+  } else if (data.type === 'delete-business') {
+    deleteRowById(ss.getSheetByName('Businesses'), data.id);
+
+  } else if (data.type === 'delete-call') {
+    deleteRowById(ss.getSheetByName('Calls'), data.id);
   }
 
   return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Finds the row whose column A matches the given ID and deletes it.
+function deleteRowById(sheet, id) {
+  if (!sheet) return;
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      return;
+    }
+  }
 }</textarea>
-          <p style="margin-top:8px;">Note: this uses a "fire and forget" request, so the tracker won't show an error if the URL is wrong — check your Sheet after adding a test entry to confirm it's working.</p>
+          <p style="margin-top:8px;">Note: this uses a "fire and forget" request, so the tracker won't show an error if the URL is wrong — check your Sheet after adding a test entry to confirm it's working. If you already deployed an earlier version of this script, paste this updated version in and redeploy (Deploy → Manage deployments → edit → New version → Deploy) to get delete support.</p>
         </div>` : ''}
       </div>
       <div class="layout">
@@ -666,6 +691,7 @@
         try {
           await apiDeleteBusiness(id);
           businesses = businesses.filter(b=>b.id!==id);
+          sendToSheet({ type: 'delete-business', id });
           render();
         } catch(e){ alert('Could not delete business — check your connection to the server.'); }
       });
@@ -676,6 +702,7 @@
         try {
           await apiDeleteCall(id);
           calls = calls.filter(c=>c.id!==id);
+          sendToSheet({ type: 'delete-call', id });
           render();
         } catch(e){ alert('Could not delete call — check your connection to the server.'); }
       });
