@@ -105,6 +105,25 @@ async function deleteCall(id) {
   if (error) throw error;
 }
 
+// --- Settings (shared, server-side config like the Google Sheet webhook URL) ---
+
+async function getSetting(key) {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? data.value : '';
+}
+
+async function setSetting(key, value) {
+  const { error } = await supabase
+    .from('settings')
+    .upsert({ key, value });
+  if (error) throw error;
+}
+
 // --- Row shape helpers (snake_case DB columns -> camelCase for the frontend) ---
 
 function rowToBusiness(row) {
@@ -134,5 +153,6 @@ function rowToCall(row) {
 module.exports = {
   init,
   listBusinesses, addBusiness, deleteBusiness,
-  listCalls, addCall, deleteCall
+  listCalls, addCall, deleteCall,
+  getSetting, setSetting
 };

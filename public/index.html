@@ -311,38 +311,31 @@
 
   async function loadAll(){
     try {
-      const [bRes, cRes] = await Promise.all([
+      const [bRes, cRes, sRes] = await Promise.all([
         fetch(API + '/businesses'),
-        fetch(API + '/calls')
+        fetch(API + '/calls'),
+        fetch(API + '/settings/sheet-url')
       ]);
       businesses = bRes.ok ? await bRes.json() : [];
       calls = cRes.ok ? await cRes.json() : [];
+      sheetUrl = sRes.ok ? (await sRes.json()).url : '';
     } catch(e){
       console.error('Failed to load from API', e);
-      businesses = []; calls = [];
+      businesses = []; calls = []; sheetUrl = '';
     }
-    try {
-      const s = localStorage.getItem('frc5462_sheetUrl');
-      sheetUrl = s || '';
-    } catch(e){ sheetUrl = ''; }
     ready = true;
     render();
   }
 
   async function saveSheetUrl(url){
-    sheetUrl = url;
-    try { localStorage.setItem('frc5462_sheetUrl', url); }
-    catch(e){ console.error('save sheetUrl failed', e); }
-  }
-
-  function sendToSheet(payload){
-    if(!sheetUrl) return;
-    fetch(sheetUrl, {
+    const res = await fetch(API + '/settings/sheet-url', {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    }).catch(()=>{ /* fire and forget, opaque response expected */ });
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if(!res.ok) throw new Error('Failed to save sheet URL');
+    const data = await res.json();
+    sheetUrl = data.url;
   }
 
   async function apiAddBusiness(payload){
@@ -488,14 +481,14 @@
         <div class="sync-panel-head" id="sync-toggle">
           <span class="sync-dot ${sheetUrl ? 'on' : ''}"></span>
           <h3>Google Sheet Sync</h3>
-          <span class="caret">${sheetUrl ? 'CONNECTED — click for setup' : 'NOT CONFIGURED — click to set up'} ${syncPanelOpen ? '▲' : '▼'}</span>
+          <span class="caret">${sheetUrl ? 'CONNECTED for everyone — click for setup' : 'NOT CONFIGURED — click to set up'} ${syncPanelOpen ? '▲' : '▼'}</span>
         </div>
         ${syncPanelOpen ? `
         <div class="sync-body">
-          <p>Every business or call added here can also be sent to a Google Sheet. This requires a one-time setup with Google Apps Script (free, no coding required beyond pasting code in):</p>
+          <p>Every business or call added or deleted here can also be synced to a Google Sheet. This is a <strong>shared, one-time setup for the whole team</strong> — set it once and everyone using this app is synced automatically, with no per-person setup needed.</p>
           <p>1. Open a Google Sheet (new or existing) → Extensions → Apps Script.<br>
              2. Delete any code there, paste the script below, then click Deploy → New deployment → type "Web app" → Execute as "Me" → Who has access "Anyone" → Deploy.<br>
-             3. Copy the Web app URL it gives you and paste it below.</p>
+             3. Copy the Web app URL it gives you and paste it below, then click Save.</p>
           <div class="sync-row">
             <input type="text" id="sheet-url-input" placeholder="Paste your Apps Script Web App URL…" value="${escapeHtml(sheetUrl)}">
             <button type="button" id="save-sheet-url">Save</button>
@@ -648,7 +641,7 @@ function deleteRowById(sheet, id) {
           <div id="call-log">${logHtml}</div>
         </div>
       </div>
-      <div class="footnote">Data is stored in the server's database — everyone hitting this same server sees the same businesses and calls.${sheetUrl ? ' New entries are also sent to your connected Google Sheet.' : ''}</div>
+      <div class="footnote">Data is stored in the server's database — everyone hitting this same server sees the same businesses and calls.${sheetUrl ? ' Google Sheet sync is on for the whole team — every add and delete syncs automatically.' : ''}</div>
     `;
 
     document.getElementById('sync-toggle').addEventListener('click', ()=>{
@@ -659,15 +652,19 @@ function deleteRowById(sheet, id) {
     if(saveBtn){
       saveBtn.addEventListener('click', async ()=>{
         const val = document.getElementById('sheet-url-input').value.trim();
-        await saveSheetUrl(val);
-        render();
+        try {
+          await saveSheetUrl(val);
+          render();
+        } catch(e){ alert('Could not save — check your connection to the server.'); }
       });
     }
     const clearBtn = document.getElementById('clear-sheet-url');
     if(clearBtn){
       clearBtn.addEventListener('click', async ()=>{
-        await saveSheetUrl('');
-        render();
+        try {
+          await saveSheetUrl('');
+          render();
+        } catch(e){ alert('Could not disconnect — check your connection to the server.'); }
       });
     }
 
@@ -691,7 +688,6 @@ function deleteRowById(sheet, id) {
         try {
           await apiDeleteBusiness(id);
           businesses = businesses.filter(b=>b.id!==id);
-          sendToSheet({ type: 'delete-business', id });
           render();
         } catch(e){ alert('Could not delete business — check your connection to the server.'); }
       });
@@ -702,7 +698,6 @@ function deleteRowById(sheet, id) {
         try {
           await apiDeleteCall(id);
           calls = calls.filter(c=>c.id!==id);
-          sendToSheet({ type: 'delete-call', id });
           render();
         } catch(e){ alert('Could not delete call — check your connection to the server.'); }
       });
@@ -723,7 +718,6 @@ function deleteRowById(sheet, id) {
     try {
       const biz = await apiAddBusiness(payload);
       businesses.push(biz);
-      sendToSheet({ type: 'business', ...biz });
       render();
     } catch(err){
       alert('Could not save business — check your connection to the server.');
@@ -751,8 +745,6 @@ function deleteRowById(sheet, id) {
     try {
       const call = await apiAddCall(payload);
       calls.push(call);
-      const biz = businesses.find(b=>b.id===businessId);
-      sendToSheet({ type: 'call', ...call, businessName: biz ? biz.name : '' });
       render();
     } catch(err){
       alert('Could not save call — check your connection to the server.');
