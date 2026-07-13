@@ -536,8 +536,10 @@
       </div>
     `;
 
-    document.getElementById('auth-tab-login').addEventListener('click', ()=>{ authView='login'; authError=''; render(); });
-    document.getElementById('auth-tab-signup').addEventListener('click', ()=>{ authView='signup'; authError=''; render(); });
+    const authTabLogin = root.querySelector('[data-action="auth-tab-login"]');
+    const authTabSignup = root.querySelector('[data-action="auth-tab-signup"]');
+    if(authTabLogin) authTabLogin.addEventListener('click', ()=>{ authView='login'; authError=''; render(); });
+    if(authTabSignup) authTabSignup.addEventListener('click', ()=>{ authView='signup'; authError=''; render(); });
 
     document.getElementById('auth-form').addEventListener('submit', async (e)=>{
       e.preventDefault();
