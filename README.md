@@ -89,7 +89,52 @@ data would quietly disappear. Supabase's free Postgres tier is a real
 persistent database, hosted outside your app, so it survives restarts,
 redeploys, and even switching hosting providers entirely.
 
+## Login & Accounts
+
+The site now requires an account to view or edit anything — nobody can see
+sponsor data or make changes without logging in first.
+
+**How it works:**
+- Everyone has their own username and password (never shared).
+- Every business/call add and edit is tagged with who did it.
+- **Members** can add and edit businesses and calls, but **cannot delete**
+  anything. **Admins** can do everything, including deleting entries and
+  changing the Google Sheet sync URL. This is the main protection against
+  sabotage — deleting things is the one action locked to trusted people.
+- The **first account ever created** on a fresh board automatically becomes
+  admin. Everyone who signs up after that becomes a regular member.
+- New accounts require a **team invite code** — set your own in the SQL
+  schema (see below) and only share it with your actual team.
+
+**One-time setup after running the schema:**
+
+1. Open `supabase-schema.sql` and find this line near the bottom:
+   ```sql
+   insert into settings (key, value) values ('inviteCode', 'change-me')
+   ```
+   Change `'change-me'` to whatever invite code you want to give your team,
+   *before* running the SQL in Supabase.
+2. Generate a `JWT_SECRET` (see `.env.example` for the exact command) and
+   add it to your `.env` file locally, and to Render's environment
+   variables when you deploy.
+3. Sign up as the first user — that account becomes admin automatically.
+   Share the invite code with the rest of the team so they can sign up too
+   (they'll all be regular members).
+
+**Promoting someone else to admin:** there's no UI for this yet — open
+Supabase's Table Editor, find the `users` table, and change that person's
+`role` from `member` to `admin` directly.
+
+**Changing the invite code later:** update the `settings` table in Supabase
+directly (the row where `key = 'inviteCode'`), or re-run the insert line
+from the schema with `on conflict (key) do update set value = '...'`
+instead of `do nothing`.
+
 ## Google Sheet Sync
 
-The frontend still has the optional Google Sheet sync panel built in — that
-part is unchanged and works independently of the database.
+This is a **shared setting for the whole team**, stored in your Supabase
+database (a small `settings` table) — not per-browser. Whoever sets it up
+first does so once, in the "Google Sheet Sync" panel in the app, and every
+add and delete from anyone on the team syncs automatically from then on.
+The actual sync request is sent by the server itself, not by each person's
+browser, which is what makes it consistent for everyone.

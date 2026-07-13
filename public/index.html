@@ -312,9 +312,50 @@
   let sheetUrl = '';
   let syncPanelOpen = false;
   let editingBizId = null;
+  let currentUser = null; // { username, role } or null if not logged in
+  let authView = 'login'; // 'login' or 'signup'
+  let authError = '';
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const API = '/api';
+
+  // All API calls go through this so 401s (not logged in / session expired)
+  // consistently bounce back to the login screen instead of failing silently.
+  async function apiFetch(url, opts){
+    const res = await fetch(url, { credentials: 'include', ...opts });
+    if(res.status === 401){
+      currentUser = null;
+      render();
+      throw new Error('Not logged in');
+    }
+    return res;
+  }
+
+  async function apiSignup(username, password, inviteCode){
+    const res = await apiFetch(API + '/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, inviteCode })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Signup failed');
+    return data;
+  }
+
+  async function apiLogin(username, password){
+    const res = await apiFetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Login failed');
+    return data;
+  }
+
+  async function apiLogout(){
+    await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' });
+  }
 
   // Formats a raw string of digits as XXX-XXX-XXXX (US-style), trimmed to 10 digits.
   function formatPhoneNumber(value){
@@ -346,9 +387,9 @@
   async function loadAll(){
     try {
       const [bRes, cRes, sRes] = await Promise.all([
-        fetch(API + '/businesses'),
-        fetch(API + '/calls'),
-        fetch(API + '/settings/sheet-url')
+        apiFetch(API + '/businesses'),
+        apiFetch(API + '/calls'),
+        apiFetch(API + '/settings/sheet-url')
       ]);
       businesses = bRes.ok ? await bRes.json() : [];
       calls = cRes.ok ? await cRes.json() : [];
@@ -362,7 +403,7 @@
   }
 
   async function saveSheetUrl(url){
-    const res = await fetch(API + '/settings/sheet-url', {
+    const res = await apiFetch(API + '/settings/sheet-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -373,7 +414,7 @@
   }
 
   async function apiAddBusiness(payload){
-    const res = await fetch(API + '/businesses', {
+    const res = await apiFetch(API + '/businesses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -382,11 +423,11 @@
     return res.json();
   }
   async function apiDeleteBusiness(id){
-    const res = await fetch(API + '/businesses/' + id, { method: 'DELETE' });
+    const res = await apiFetch(API + '/businesses/' + id, { method: 'DELETE' });
     if(!res.ok) throw new Error('Failed to delete business');
   }
   async function apiUpdateBusiness(id, payload){
-    const res = await fetch(API + '/businesses/' + id, {
+    const res = await apiFetch(API + '/businesses/' + id, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -395,7 +436,7 @@
     return res.json();
   }
   async function apiAddCall(payload){
-    const res = await fetch(API + '/calls', {
+    const res = await apiFetch(API + '/calls', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -404,9 +445,10 @@
     return res.json();
   }
   async function apiDeleteCall(id){
-    const res = await fetch(API + '/calls/' + id, { method: 'DELETE' });
+    const res = await apiFetch(API + '/calls/' + id, { method: 'DELETE' });
     if(!res.ok) throw new Error('Failed to delete call');
   }
+
 
   function money(n){
     const v = Number(n)||0;
@@ -443,6 +485,83 @@
   let bizSearch = '';
 
   function render(){
+    if(!currentUser){
+      renderAuthScreen();
+    } else {
+      renderApp();
+    }
+  }
+
+  function renderAuthScreen(){
+    const isSignup = authView === 'signup';
+    root.innerHTML = `
+      <div style="max-width:420px; margin:0 auto; padding:60px 20px; min-height:100vh; display:flex; flex-direction:column; justify-content:center;">
+        <div style="text-align:center; margin-bottom:24px;">
+          <h1 style="font-family:var(--disp); font-weight:700; font-size:26px; letter-spacing:0.04em; color:#fff; text-transform:uppercase; margin:0;">FRC 5462</h1>
+          <div style="font-size:11px; letter-spacing:0.18em; color:var(--orange); text-transform:uppercase; margin-top:4px;">Sponsor Call Board</div>
+        </div>
+        <div style="border:1px solid var(--blue-line); padding:20px; background:rgba(255,255,255,0.015);">
+          <div style="display:flex; gap:0; margin-bottom:18px; border-bottom:1px solid var(--blue-line);">
+            <button type="button" data-action="auth-tab-login" style="flex:1; background:none; border:none; padding:10px; font-family:var(--disp); text-transform:uppercase; letter-spacing:0.05em; font-size:13px; cursor:pointer; color:${!isSignup ? '#fff' : 'var(--paper-dim)'}; border-bottom:2px solid ${!isSignup ? 'var(--orange)' : 'transparent'};">Log In</button>
+            <button type="button" data-action="auth-tab-signup" style="flex:1; background:none; border:none; padding:10px; font-family:var(--disp); text-transform:uppercase; letter-spacing:0.05em; font-size:13px; cursor:pointer; color:${isSignup ? '#fff' : 'var(--paper-dim)'}; border-bottom:2px solid ${isSignup ? 'var(--orange)' : 'transparent'};">Sign Up</button>
+          </div>
+
+          ${authError ? '<div style="border:1px solid var(--red); color:var(--red); font-size:12px; padding:8px 10px; margin-bottom:14px;">'+escapeHtml(authError)+'</div>' : ''}
+
+          <form id="auth-form">
+            <div class="field-row">
+              <div class="field">
+                <label>Username</label>
+                <input type="text" id="auth-username" autocomplete="username" required>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Password</label>
+                <input type="password" id="auth-password" autocomplete="${isSignup ? 'new-password' : 'current-password'}" required>
+              </div>
+            </div>
+            ${isSignup ? `
+            <div class="field-row">
+              <div class="field">
+                <label>Team invite code</label>
+                <input type="text" id="auth-invite" required>
+              </div>
+            </div>
+            ` : ''}
+            <button type="submit" style="width:100%; margin-top:6px;">${isSignup ? 'Create Account' : 'Log In'}</button>
+          </form>
+          ${isSignup ? '<p style="font-size:11px; color:var(--paper-dim); margin-top:12px; line-height:1.5;">Ask a teammate or mentor for the invite code. The very first account created on this board automatically becomes an admin.</p>' : ''}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('auth-tab-login').addEventListener('click', ()=>{ authView='login'; authError=''; render(); });
+    document.getElementById('auth-tab-signup').addEventListener('click', ()=>{ authView='signup'; authError=''; render(); });
+
+    document.getElementById('auth-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const username = document.getElementById('auth-username').value.trim();
+      const password = document.getElementById('auth-password').value;
+      try {
+        let result;
+        if(isSignup){
+          const inviteCode = document.getElementById('auth-invite').value.trim();
+          result = await apiSignup(username, password, inviteCode);
+        } else {
+          result = await apiLogin(username, password);
+        }
+        currentUser = result;
+        authError = '';
+        loadAll();
+      } catch(err){
+        authError = err.message || 'Something went wrong';
+        render();
+      }
+    });
+  }
+
+  function renderApp(){
     if(!ready){
       root.innerHTML = '<div class="loading-msg">LOADING BOARD…</div>';
       return;
@@ -531,7 +650,7 @@
             <div class="biz-actions">
               <button class="tiny" data-action="log-call" data-id="${b.id}">Log Call</button>
               <button class="tiny ghost" data-action="edit-biz" data-id="${b.id}">Edit</button>
-              <button class="tiny ghost" data-action="delete-biz" data-id="${b.id}">Del</button>
+              ${currentUser.role === 'admin' ? '<button class="tiny ghost" data-action="delete-biz" data-id="'+b.id+'">Del</button>' : ''}
             </div>
           </div>
         </div>
@@ -549,7 +668,7 @@
           </div>
           <div class="log-caller">Called by ${escapeHtml(c.caller)}${c.amount ? ' · '+money(c.amount) : ''}</div>
           ${c.notes ? '<div class="log-notes">'+escapeHtml(c.notes)+'</div>' : ''}
-          <div style="margin-top:6px;"><button class="tiny ghost" data-action="delete-call" data-id="${c.id}">Remove entry</button></div>
+          ${currentUser.role === 'admin' ? '<div style="margin-top:6px;"><button class="tiny ghost" data-action="delete-call" data-id="'+c.id+'">Remove entry</button></div>' : ''}
         </div>
       `;
     }).join('') : '<div class="empty">No calls logged yet. Use "Log Call" on a business, or the quick-log form above.</div>';
@@ -562,7 +681,9 @@
         </div>
         <div class="spec-tag">
           SHEET NO. <span>FR-5462</span><br>
-          LOCAL COPY — <span>SAVED ON THE SERVER DATABASE</span>
+          LOCAL COPY — <span>SAVED ON THE SERVER DATABASE</span><br>
+          Logged in as <span>${escapeHtml(currentUser.username)}</span> (${escapeHtml(currentUser.role)})
+          <button type="button" id="logout-btn" class="tiny ghost" style="margin-left:8px;">Log Out</button>
         </div>
       </div>
       ${stats}
@@ -579,9 +700,11 @@
              2. Delete any code there, paste the script below, then click Deploy → New deployment → type "Web app" → Execute as "Me" → Who has access "Anyone" → Deploy.<br>
              3. Copy the Web app URL it gives you and paste it below, then click Save.</p>
           <div class="sync-row">
-            <input type="text" id="sheet-url-input" placeholder="Paste your Apps Script Web App URL…" value="${escapeHtml(sheetUrl)}">
-            <button type="button" id="save-sheet-url">Save</button>
-            ${sheetUrl ? '<button type="button" class="ghost" id="clear-sheet-url">Disconnect</button>' : ''}
+            <input type="text" id="sheet-url-input" placeholder="Paste your Apps Script Web App URL…" value="${escapeHtml(sheetUrl)}" ${currentUser.role !== 'admin' ? 'readonly' : ''}>
+            ${currentUser.role === 'admin' ? `
+              <button type="button" id="save-sheet-url">Save</button>
+              ${sheetUrl ? '<button type="button" class="ghost" id="clear-sheet-url">Disconnect</button>' : ''}
+            ` : '<span style="font-size:11px; color:var(--paper-dim); align-self:center;">Only admins can change this.</span>'}
           </div>
           <p style="margin-top:10px;">Apps Script code to paste in:</p>
           <textarea readonly style="width:100%; min-height:320px; font-size:11px;">function doPost(e) {
@@ -766,6 +889,13 @@ function deleteRowById(sheet, id) {
       <div class="footnote">Data is stored in the server's database — everyone hitting this same server sees the same businesses and calls.${sheetUrl ? ' Google Sheet sync is on for the whole team — every add and delete syncs automatically.' : ''}</div>
     `;
 
+    document.getElementById('logout-btn').addEventListener('click', async ()=>{
+      await apiLogout();
+      currentUser = null;
+      businesses = []; calls = [];
+      render();
+    });
+
     document.getElementById('sync-toggle').addEventListener('click', ()=>{
       syncPanelOpen = !syncPanelOpen;
       render();
@@ -920,7 +1050,20 @@ function deleteRowById(sheet, id) {
     }
   }
 
-  loadAll();
+  async function init(){
+    try {
+      const res = await fetch(API + '/auth/me', { credentials: 'include' });
+      if(res.ok){
+        currentUser = await res.json();
+        loadAll();
+        return;
+      }
+    } catch(e){ /* fall through to login screen */ }
+    ready = true;
+    render();
+  }
+
+  init();
 })();
 </script>
 </body></html>

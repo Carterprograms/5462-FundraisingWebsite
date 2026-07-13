@@ -46,7 +46,7 @@ async function listBusinesses() {
   return data.map(rowToBusiness);
 }
 
-async function addBusiness({ name, contact, phone, email, address, notes }) {
+async function addBusiness({ name, contact, phone, email, address, notes }, createdBy) {
   const row = {
     id: uid(),
     name: name || '',
@@ -55,6 +55,8 @@ async function addBusiness({ name, contact, phone, email, address, notes }) {
     email: email || '',
     address: address || '',
     notes: notes || '',
+    created_by: createdBy || '',
+    updated_by: createdBy || '',
     created_at: new Date().toISOString()
   };
   const { data, error } = await supabase
@@ -71,7 +73,7 @@ async function deleteBusiness(id) {
   if (error) throw error;
 }
 
-async function updateBusiness(id, { name, contact, phone, email, address, notes }) {
+async function updateBusiness(id, { name, contact, phone, email, address, notes }, updatedBy) {
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (contact !== undefined) updates.contact = contact;
@@ -79,6 +81,7 @@ async function updateBusiness(id, { name, contact, phone, email, address, notes 
   if (email !== undefined) updates.email = email;
   if (address !== undefined) updates.address = address;
   if (notes !== undefined) updates.notes = notes;
+  updates.updated_by = updatedBy || '';
 
   const { data, error } = await supabase
     .from('businesses')
@@ -101,7 +104,7 @@ async function listCalls() {
   return data.map(rowToCall);
 }
 
-async function addCall({ businessId, caller, date, outcome, amount, notes }) {
+async function addCall({ businessId, caller, date, outcome, amount, notes }, createdBy) {
   const row = {
     id: uid(),
     business_id: businessId,
@@ -109,7 +112,8 @@ async function addCall({ businessId, caller, date, outcome, amount, notes }) {
     date: date || new Date().toISOString().slice(0, 10),
     outcome: outcome || 'Follow-up',
     amount: amount || 0,
-    notes: notes || ''
+    notes: notes || '',
+    created_by: createdBy || ''
   };
   const { data, error } = await supabase
     .from('calls')
@@ -144,6 +148,36 @@ async function setSetting(key, value) {
   if (error) throw error;
 }
 
+// --- Users ---
+
+async function countUsers() {
+  const { count, error } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
+}
+
+async function getUserByUsername(username) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function createUser({ id, username, passwordHash, role }) {
+  const { data, error } = await supabase
+    .from('users')
+    .insert({ id, username, password_hash: passwordHash, role })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // --- Row shape helpers (snake_case DB columns -> camelCase for the frontend) ---
 
 function rowToBusiness(row) {
@@ -155,6 +189,8 @@ function rowToBusiness(row) {
     email: row.email,
     address: row.address,
     notes: row.notes,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
     createdAt: row.created_at
   };
 }
@@ -167,7 +203,8 @@ function rowToCall(row) {
     date: row.date,
     outcome: row.outcome,
     amount: row.amount,
-    notes: row.notes
+    notes: row.notes,
+    createdBy: row.created_by
   };
 }
 
@@ -175,5 +212,6 @@ module.exports = {
   init,
   listBusinesses, addBusiness, deleteBusiness, updateBusiness,
   listCalls, addCall, deleteCall,
-  getSetting, setSetting
+  getSetting, setSetting,
+  countUsers, getUserByUsername, createUser
 };
