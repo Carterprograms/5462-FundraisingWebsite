@@ -765,7 +765,16 @@ function deleteRowById(sheet, id) {
 
     document.getElementById('biz-form').addEventListener('submit', onAddBusiness);
     document.getElementById('call-form').addEventListener('submit', onAddCall);
-    document.getElementById('biz-search').addEventListener('input', (e)=>{ bizSearch = e.target.value; render(); });
+    document.getElementById('biz-search').addEventListener('input', (e)=>{
+      bizSearch = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      render();
+      const newInput = document.getElementById('biz-search');
+      if(newInput){
+        newInput.focus();
+        newInput.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
     document.getElementById('biz-filter').value = bizFilter;
     document.getElementById('biz-filter').addEventListener('change', (e)=>{ bizFilter = e.target.value; render(); });
 
