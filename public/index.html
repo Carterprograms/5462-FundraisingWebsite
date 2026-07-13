@@ -316,6 +316,33 @@
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const API = '/api';
 
+  // Formats a raw string of digits as XXX-XXX-XXXX (US-style), trimmed to 10 digits.
+  function formatPhoneNumber(value){
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if(digits.length <= 3) return digits;
+    if(digits.length <= 6) return digits.slice(0,3) + '-' + digits.slice(3);
+    return digits.slice(0,3) + '-' + digits.slice(3,6) + '-' + digits.slice(6);
+  }
+
+  // Delegated listener attached once to the persistent #app-root element (not
+  // re-attached on every render), so it auto-dashes any input with the
+  // "phone-input" class as the user types, in both the add and edit forms.
+  root.addEventListener('input', (e)=>{
+    const el = e.target;
+    if(!el.classList || !el.classList.contains('phone-input')) return;
+    const cursorPos = el.selectionStart;
+    const digitsBeforeCursor = el.value.slice(0, cursorPos).replace(/\D/g, '').length;
+    const formatted = formatPhoneNumber(el.value);
+    el.value = formatted;
+    let newPos = formatted.length;
+    let digitCount = 0;
+    for(let i = 0; i < formatted.length; i++){
+      if(digitCount >= digitsBeforeCursor){ newPos = i; break; }
+      if(/\d/.test(formatted[i])) digitCount++;
+    }
+    el.setSelectionRange(newPos, newPos);
+  });
+
   async function loadAll(){
     try {
       const [bRes, cRes, sRes] = await Promise.all([
@@ -460,7 +487,7 @@
             <div class="field-row">
               <div class="field">
                 <label>Phone</label>
-                <input type="tel" class="eb-phone" value="${escapeHtml(b.phone||'')}">
+                <input type="tel" class="eb-phone phone-input" value="${escapeHtml(b.phone||'')}">
               </div>
               <div class="field">
                 <label>Email</label>
@@ -651,7 +678,7 @@ function deleteRowById(sheet, id) {
             <div class="field-row">
               <div class="field">
                 <label>Phone</label>
-                <input type="tel" id="f-phone" placeholder="(517) 555-0100">
+                <input type="tel" id="f-phone" class="phone-input" placeholder="(517) 555-0100">
               </div>
               <div class="field">
                 <label>Email</label>
