@@ -311,6 +311,7 @@
   let ready = false;
   let sheetUrl = '';
   let syncPanelOpen = false;
+  let editingBizId = null;
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const API = '/api';
@@ -356,6 +357,15 @@
   async function apiDeleteBusiness(id){
     const res = await fetch(API + '/businesses/' + id, { method: 'DELETE' });
     if(!res.ok) throw new Error('Failed to delete business');
+  }
+  async function apiUpdateBusiness(id, payload){
+    const res = await fetch(API + '/businesses/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('Failed to update business');
+    return res.json();
   }
   async function apiAddCall(payload){
     const res = await fetch(API + '/calls', {
@@ -432,6 +442,50 @@
       const st = latestStatusForBusiness(b.id) || 'None';
       const bizCalls = calls.filter(c=>c.businessId===b.id);
       const pledgeSum = bizCalls.reduce((s,c)=> s + (c.outcome==='Pledged' ? (Number(c.amount)||0) : 0), 0);
+
+      if(editingBizId === b.id){
+        return `
+        <div class="biz-card">
+          <form class="card" data-action="edit-biz-form" data-id="${b.id}" style="margin-bottom:0;">
+            <div class="field-row">
+              <div class="field" style="flex:2;">
+                <label>Business name *</label>
+                <input type="text" class="eb-name" value="${escapeHtml(b.name)}" required>
+              </div>
+              <div class="field">
+                <label>Contact person</label>
+                <input type="text" class="eb-contact" value="${escapeHtml(b.contact||'')}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Phone</label>
+                <input type="tel" class="eb-phone" value="${escapeHtml(b.phone||'')}">
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input type="email" class="eb-email" value="${escapeHtml(b.email||'')}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field" style="flex:1;">
+                <label>Address</label>
+                <input type="text" class="eb-address" value="${escapeHtml(b.address||'')}">
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Notes</label>
+                <textarea class="eb-notes">${escapeHtml(b.notes||'')}</textarea>
+              </div>
+            </div>
+            <button type="submit">Save Changes</button>
+            <button type="button" class="ghost" data-action="cancel-edit-biz">Cancel</button>
+          </form>
+        </div>
+        `;
+      }
+
       return `
         <div class="biz-card">
           <div class="biz-top">
@@ -449,6 +503,7 @@
             </div>
             <div class="biz-actions">
               <button class="tiny" data-action="log-call" data-id="${b.id}">Log Call</button>
+              <button class="tiny ghost" data-action="edit-biz" data-id="${b.id}">Edit</button>
               <button class="tiny ghost" data-action="delete-biz" data-id="${b.id}">Del</button>
             </div>
           </div>
@@ -480,7 +535,7 @@
         </div>
         <div class="spec-tag">
           SHEET NO. <span>FR-5462</span><br>
-          SERVER WIDE COPY — <span>SAVED ON THE SERVER DATABASE</span>
+          LOCAL COPY — <span>SAVED ON THE SERVER DATABASE</span>
         </div>
       </div>
       ${stats}
@@ -518,6 +573,7 @@
       sheet.appendRow(['ID','Name','Contact','Phone','Email','Address','Notes','Created At']);
     }
     sheet.appendRow([data.id, data.name, data.contact, data.phone, data.email, data.address, data.notes, data.createdAt]);
+    sortSheetByColumn(sheet, 2); // 2 = Name column
 
   } else if (data.type === 'call') {
     var sheet = ss.getSheetByName('Calls') || ss.insertSheet('Calls');
@@ -531,10 +587,36 @@
 
   } else if (data.type === 'delete-call') {
     deleteRowById(ss.getSheetByName('Calls'), data.id);
+
+  } else if (data.type === 'update-business') {
+    updateRowById(ss.getSheetByName('Businesses'), data.id,
+      [data.id, data.name, data.contact, data.phone, data.email, data.address, data.notes, data.createdAt]);
+    sortSheetByColumn(ss.getSheetByName('Businesses'), 2);
   }
 
   return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Sorts all data rows (below the header) by the given column number, A-Z.
+function sortSheetByColumn(sheet, columnNumber) {
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 3) return; // nothing to sort with 0 or 1 data rows
+  var range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  range.sort({ column: columnNumber, ascending: true });
+}
+
+// Finds the row whose column A matches the given ID and overwrites it with newValues.
+function updateRowById(sheet, id, newValues) {
+  if (!sheet) return;
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(id)) {
+      sheet.getRange(i + 1, 1, 1, newValues.length).setValues([newValues]);
+      return;
+    }
+  }
 }
 
 // Finds the row whose column A matches the given ID and deletes it.
@@ -563,7 +645,7 @@ function deleteRowById(sheet, id) {
               </div>
               <div class="field">
                 <label>Contact person</label>
-                <input type="text" id="f-contact" placeholder="Caller Assigned">
+                <input type="text" id="f-contact" placeholder="Manager name">
               </div>
             </div>
             <div class="field-row">
@@ -703,6 +785,43 @@ function deleteRowById(sheet, id) {
           businesses = businesses.filter(b=>b.id!==id);
           render();
         } catch(e){ alert('Could not delete business — check your connection to the server.'); }
+      });
+    });
+    root.querySelectorAll('[data-action="edit-biz"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        editingBizId = btn.getAttribute('data-id');
+        render();
+      });
+    });
+    root.querySelectorAll('[data-action="cancel-edit-biz"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        editingBizId = null;
+        render();
+      });
+    });
+    root.querySelectorAll('[data-action="edit-biz-form"]').forEach(form=>{
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const id = form.getAttribute('data-id');
+        const name = form.querySelector('.eb-name').value.trim();
+        if(!name) return;
+        const payload = {
+          name,
+          contact: form.querySelector('.eb-contact').value.trim(),
+          phone: form.querySelector('.eb-phone').value.trim(),
+          email: form.querySelector('.eb-email').value.trim(),
+          address: form.querySelector('.eb-address').value.trim(),
+          notes: form.querySelector('.eb-notes').value.trim()
+        };
+        try {
+          const updated = await apiUpdateBusiness(id, payload);
+          const idx = businesses.findIndex(b=>b.id===id);
+          if(idx !== -1) businesses[idx] = updated;
+          editingBizId = null;
+          render();
+        } catch(err){
+          alert('Could not save changes — check your connection to the server.');
+        }
       });
     });
     root.querySelectorAll('[data-action="delete-call"]').forEach(btn=>{

@@ -69,6 +69,21 @@ app.delete('/api/businesses/:id', async (req, res) => {
   }
 });
 
+app.put('/api/businesses/:id', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (name !== undefined && !name.trim()) {
+      return res.status(400).json({ error: 'Business name cannot be empty' });
+    }
+    const biz = await db.updateBusiness(req.params.id, req.body);
+    res.json(biz);
+    sendToSheet({ type: 'update-business', ...biz });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update business' });
+  }
+});
+
 // --- Calls ---
 
 app.get('/api/calls', async (req, res) => {

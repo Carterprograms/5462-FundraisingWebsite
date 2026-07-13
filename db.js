@@ -71,6 +71,25 @@ async function deleteBusiness(id) {
   if (error) throw error;
 }
 
+async function updateBusiness(id, { name, contact, phone, email, address, notes }) {
+  const updates = {};
+  if (name !== undefined) updates.name = name;
+  if (contact !== undefined) updates.contact = contact;
+  if (phone !== undefined) updates.phone = phone;
+  if (email !== undefined) updates.email = email;
+  if (address !== undefined) updates.address = address;
+  if (notes !== undefined) updates.notes = notes;
+
+  const { data, error } = await supabase
+    .from('businesses')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToBusiness(data);
+}
+
 // --- Calls ---
 
 async function listCalls() {
@@ -154,7 +173,7 @@ function rowToCall(row) {
 
 module.exports = {
   init,
-  listBusinesses, addBusiness, deleteBusiness,
+  listBusinesses, addBusiness, deleteBusiness, updateBusiness,
   listCalls, addCall, deleteCall,
   getSetting, setSetting
 };
