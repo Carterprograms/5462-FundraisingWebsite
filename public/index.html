@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FRC 5462 Sponsor Call Board</title>
+<title>FRC 5462 Sponsor Outreach Board</title>
 </head>
 <body>
 <style>
@@ -498,7 +498,7 @@
       <div style="max-width:420px; margin:0 auto; padding:60px 20px; min-height:100vh; display:flex; flex-direction:column; justify-content:center;">
         <div style="text-align:center; margin-bottom:24px;">
           <h1 style="font-family:var(--disp); font-weight:700; font-size:26px; letter-spacing:0.04em; color:#fff; text-transform:uppercase; margin:0;">FRC 5462</h1>
-          <div style="font-size:11px; letter-spacing:0.18em; color:var(--orange); text-transform:uppercase; margin-top:4px;">Sponsor Call Board</div>
+          <div style="font-size:11px; letter-spacing:0.18em; color:var(--orange); text-transform:uppercase; margin-top:4px;">Sponsor Outreach Board</div>
         </div>
         <div style="border:1px solid var(--blue-line); padding:20px; background:rgba(255,255,255,0.015);">
           <div style="display:flex; gap:0; margin-bottom:18px; border-bottom:1px solid var(--blue-line);">
@@ -536,12 +536,14 @@
       </div>
     `;
 
-    const authTabLogin = root.querySelector('[data-action="auth-tab-login"]');
-    const authTabSignup = root.querySelector('[data-action="auth-tab-signup"]');
-    if(authTabLogin) authTabLogin.addEventListener('click', ()=>{ authView='login'; authError=''; render(); });
-    if(authTabSignup) authTabSignup.addEventListener('click', ()=>{ authView='signup'; authError=''; render(); });
+    const loginTab = root.querySelector('[data-action="auth-tab-login"]');
+    if(loginTab) loginTab.addEventListener('click', ()=>{ authView='login'; authError=''; render(); });
 
-    document.getElementById('auth-form').addEventListener('submit', async (e)=>{
+    const signupTab = root.querySelector('[data-action="auth-tab-signup"]');
+    if(signupTab) signupTab.addEventListener('click', ()=>{ authView='signup'; authError=''; render(); });
+
+    const authForm = document.getElementById('auth-form');
+    if(authForm) authForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const username = document.getElementById('auth-username').value.trim();
       const password = document.getElementById('auth-password').value;
@@ -572,7 +574,7 @@
     const stats = `
       <div class="stat-strip">
         <div class="stat"><div class="num">${businesses.length}</div><div class="lbl">Businesses Listed</div></div>
-        <div class="stat"><div class="num">${calls.length}</div><div class="lbl">Calls Logged</div></div>
+        <div class="stat"><div class="num">${calls.length}</div><div class="lbl">Interactions Logged</div></div>
         <div class="stat"><div class="num">${money(totalPledged())}</div><div class="lbl">Pledged Total</div></div>
         <div class="stat"><div class="num">${followUpCount()}</div><div class="lbl">Need Follow-up</div></div>
       </div>
@@ -650,7 +652,7 @@
               ${b.notes ? '<div class="biz-meta" style="margin-top:6px;">'+escapeHtml(b.notes)+'</div>' : ''}
             </div>
             <div class="biz-actions">
-              <button class="tiny" data-action="log-call" data-id="${b.id}">Log Call</button>
+              <button class="tiny" data-action="log-call" data-id="${b.id}">Log Interaction</button>
               <button class="tiny ghost" data-action="edit-biz" data-id="${b.id}">Edit</button>
               ${currentUser.role === 'admin' ? '<button class="tiny ghost" data-action="delete-biz" data-id="'+b.id+'">Del</button>' : ''}
             </div>
@@ -668,17 +670,17 @@
             <div class="log-biz">${biz ? escapeHtml(biz.name) : '(deleted business)'} <span class="status-badge ${statusClass(c.outcome)}">${escapeHtml(c.outcome)}</span></div>
             <div class="log-date">${escapeHtml(c.date)}</div>
           </div>
-          <div class="log-caller">Called by ${escapeHtml(c.caller)}${c.amount ? ' · '+money(c.amount) : ''}</div>
+          <div class="log-caller">Logged by ${escapeHtml(c.caller)}${c.amount ? ' · '+money(c.amount) : ''}</div>
           ${c.notes ? '<div class="log-notes">'+escapeHtml(c.notes)+'</div>' : ''}
           ${currentUser.role === 'admin' ? '<div style="margin-top:6px;"><button class="tiny ghost" data-action="delete-call" data-id="'+c.id+'">Remove entry</button></div>' : ''}
         </div>
       `;
-    }).join('') : '<div class="empty">No calls logged yet. Use "Log Call" on a business, or the quick-log form above.</div>';
+    }).join('') : '<div class="empty">No interactions logged yet. Use "Log Interaction" on a business, or the quick-log form above.</div>';
 
     root.innerHTML = `
       <div class="sheet-header">
         <div class="title-block">
-          <h1>FRC 5462 — Sponsor Call Board</h1>
+          <h1>FRC 5462 — Sponsor Outreach Board</h1>
           <div class="sub">Fundraising Contact Tracker</div>
         </div>
         <div class="spec-tag">
@@ -840,7 +842,7 @@ function deleteRowById(sheet, id) {
         </div>
 
         <div class="col">
-          <div class="section-label"><span class="tick"></span><h2>Call Log</h2><span class="count">${calls.length} ENTRIES</span></div>
+          <div class="section-label"><span class="tick"></span><h2>Interaction Log</h2><span class="count">${calls.length} ENTRIES</span></div>
 
           <form class="card" id="call-form">
             <div class="field-row">
@@ -853,7 +855,7 @@ function deleteRowById(sheet, id) {
               </div>
               <div class="field">
                 <label>Your name *</label>
-                <input type="text" id="c-caller" placeholder="Caller" required>
+                <input type="text" id="c-caller" placeholder="Name" required>
               </div>
             </div>
             <div class="field-row">
@@ -867,7 +869,7 @@ function deleteRowById(sheet, id) {
                   <option value="Follow-up">Follow-up needed</option>
                   <option value="Pledged">Pledged</option>
                   <option value="Declined">Declined</option>
-                  <option value="No answer">No answer / left message</option>
+                  <option value="No answer">No answer / couldn't connect</option>
                 </select>
               </div>
               <div class="field">
@@ -877,11 +879,11 @@ function deleteRowById(sheet, id) {
             </div>
             <div class="field-row">
               <div class="field">
-                <label>Call notes</label>
+                <label>Notes</label>
                 <textarea id="c-notes" placeholder="What was discussed, next steps…"></textarea>
               </div>
             </div>
-            <button type="submit" ${businesses.length===0 ? 'disabled' : ''}>+ Log Call</button>
+            <button type="submit" ${businesses.length===0 ? 'disabled' : ''}>+ Log Interaction</button>
             ${businesses.length===0 ? '<div style="font-size:11px;color:var(--paper-dim);margin-top:6px;">Add a business first.</div>' : ''}
           </form>
 
